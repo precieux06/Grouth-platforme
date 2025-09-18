@@ -44,9 +44,29 @@ export default function Home({ supabaseSession }) {
     } catch(e){ console.error(e); }
   }
 
+  // ✅ Inscription corrigée avec création automatique de profil
   async function signUp(email, password){
-    const { error } = await supabase.auth.signUp({ email, password });
-    if(error) alert(error.message); else alert('Email d\'activation envoyé (vérifie ta boîte).');
+    const { data, error } = await supabase.auth.signUp({ email, password });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    // Création automatique du profil
+    if (data.user) {
+      const { error: profileErr } = await supabase
+        .from('profiles')
+        .insert([{ id: data.user.id, email: data.user.email, points: 0 }]);
+
+      if (profileErr) {
+        console.error(profileErr);
+        alert("Erreur lors de la création du profil. Vérifie Supabase.");
+        return;
+      }
+    }
+
+    alert("Inscription réussie ! Vérifie ta boîte email pour confirmer ton compte.");
   }
 
   async function signIn(email, password){
@@ -83,7 +103,6 @@ export default function Home({ supabaseSession }) {
     if(!user) { alert('Connecte-toi'); return; }
     setLoading(true);
     try {
-      // Call server API that verifies and updates using service role
       const token = (await supabase.auth.getSession()).data.session.access_token;
       const res = await fetch('/api/tasks/claim', {
         method: 'POST',
@@ -94,7 +113,6 @@ export default function Home({ supabaseSession }) {
       if(data.error) alert(data.error);
       else {
         alert('Tâche validée, points crédités !');
-        // reload profile
         loadProfile(user.id);
       }
     } catch(e){ console.error(e); alert('Erreur'); }
@@ -171,5 +189,4 @@ function SignForm({ onSignUp, onSignIn }){
       </div>
     </div>
   )
-                                   }
-    
+}
